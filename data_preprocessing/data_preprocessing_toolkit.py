@@ -36,7 +36,7 @@ class DataPreprocessingToolkit(object):
         return df
 
     def add_length_of_stay(self, df):
-        # Write your code here
+        df['length_of_stay'] = (df["date_to"] - df["date_from"]).dt.days
         return df
 
     def add_book_to_arrival(self, df):
@@ -56,7 +56,8 @@ class DataPreprocessingToolkit(object):
         return df
 
     def add_night_price(self, df):
-        # Write your code here
+        price = df["accomodation_price"] / df["length_of_stay"]
+        df['night_price'] = round(price, 2)
         return df
 
     def clip_book_to_arrival(self, df):
@@ -127,18 +128,14 @@ class DataPreprocessingToolkit(object):
         return df
 
     def map_night_price_to_room_segment_buckets(self, df):
-        # Write your code here
+        night_prices = df.loc[df['accomodation_price'] > 1]\
+            .groupby(['term', 'room_group_id'])['night_price'].mean().reset_index()
+        night_prices.columns = ['term', 'room_group_id', 'termnight_price']
+        df = pd.merge(df, night_prices, on=['term', 'room_group_id'], how='left')
+        df.loc[:, 'room_segment'] = df['night_price'].apply(
+            lambda x: self.map_value_to_bucket(x, self.room_segment_buckets))
+        df = df.drop(columns=['termnight_price'])
         return df
-
-    # def map_night_price_to_room_segment_buckets(self, df):
-    #     night_prices = df.loc[df['accomodation_price'] > 1]\
-    #         .groupby(['term', 'room_group_id'])['night_price'].mean().reset_index()
-    #     night_prices.columns = ['term', 'room_group_id', 'termnight_price']
-    #     df = pd.merge(df, night_prices, on=['term', 'room_group_id'], how='left')
-    #     df.loc[:, 'room_segment'] = df['termnight_price'].apply(
-    #         lambda x: self.map_value_to_bucket(x, self.room_segment_buckets))
-    #     df = df.drop(columns=['termnight_price'])
-    #     return df
 
     def map_npeople_to_npeople_buckets(self, df):
         df.loc[:, 'n_people_bucket'] = df['n_people'].apply(lambda x: self.map_value_to_bucket(x, self.npeople_buckets))
